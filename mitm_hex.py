@@ -8,9 +8,6 @@ import serial
 import pty
 from hexdump import hexdump
 
-LISTEN_PORT   = 65504
-TARGET_HOST   = 'localhost'
-TARGET_PORT   = 65504
 BUFFER_SIZE   = 4096
 
 def build_argparser():
@@ -38,23 +35,27 @@ class ManInTheMiddle:
     return
 
   def initSocket(self, source, dest):
-    # 1. listen
+    host, port = source.split(":")
+    if host == "*":
+      host = "0.0.0.0"
+    port = int(port)
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #server.bind(('0.0.0.0', LISTEN_PORT))
-    server.bind(('10.4.0.242', LISTEN_PORT))
+    server.bind((host, port))
     server.listen(1)
-    print(f"Listening on port {LISTEN_PORT}...")
+    print(f"Listening on {host}:{port}...")
 
     client_sock, client_addr = server.accept()
     print(f"Client connected from {client_addr}")
 
-    # 2. connect to target
+    host, port = dest.split(":")
+    port = int(port)
     remote_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    remote_sock.connect((TARGET_HOST, TARGET_PORT))
-    print(f"Connected to {TARGET_HOST}:{TARGET_PORT}")
+    remote_sock.connect((host, port))
+    print(f"Connected to {host}:{port}")
 
-    sockets = [client_sock, remote_sock]
+    self.sourceFD = client_sock
+    self.destFD = remote_sock
     return
 
   def read(self, fd, length):
